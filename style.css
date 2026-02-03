@@ -1,0 +1,143 @@
+/* 1. GENEL AYARLAR VE RENK PALETİ */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+body {
+    background-color: #1a1a2e; /* Koyu lacivert/siyah tonu */
+    color: #ffffff;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    overflow-x: hidden;
+    touch-action: manipulation; /* Mobil yakınlaştırmayı engeller */
+}
+
+/* 2. GİRİŞ EKRANI TASARIMI */
+#login-screen {
+    text-align: center;
+    background: #16213e;
+    padding: 40px;
+    border-radius: 20px;
+    border: 2px solid #0f3460;
+    box-shadow: 0 0 30px rgba(0, 0, 0, 0.5);
+}
+
+#login-screen h1 {
+    font-size: 3rem;
+    color: #e94560;
+    margin-bottom: 10px;
+    text-shadow: 0 0 10px rgba(233, 69, 96, 0.5);
+}
+
+input {
+    padding: 12px 20px;
+    font-size: 1rem;
+    border-radius: 10px;
+    border: none;
+    margin-bottom: 20px;
+    width: 250px;
+    outline: none;
+}
+
+button {
+    background-color: #e94560;
+    color: white;
+    padding: 12px 30px;
+    border: none;
+    border-radius: 10px;
+    font-size: 1.1rem;
+    font-weight: bold;
+    cursor: pointer;
+    transition: transform 0.2s, background 0.3s;
+}
+
+button:hover {
+    background-color: #ff2e63;
+    transform: scale(1.05);
+}
+
+/* 3. OYUN ALANI (GAME CONTAINER) */
+#game-container {
+    text-align: center;
+    width: 100%;
+    max-width: 500px;
+    padding: 10px;
+}
+
+.stats-box {
+    display: flex;
+    justify-content: space-around;
+    background: #16213e;
+    padding: 10px;
+    border-radius: 10px;
+    margin-bottom: 10px;
+    border: 1px solid #0f3460;
+}
+
+b {
+    color: #00d4ff;
+}
+
+/* 4. CANVAS (LABİRENT) AYARLARI */
+#mazeCanvas {
+    background-color: #16213e;
+    border: 3px solid #00d4ff;
+    border-radius: 15px;
+    box-shadow: 0 0 25px rgba(0, 212, 255, 0.3);
+    max-width: 95vw; /* Mobil ekran genişliği uyumu */
+    max-height: 70vh; /* Mobil boy uyumu */
+    display: block;
+    margin: 0 auto;
+}
+
+/* 5. MOBİL KONTROL TUŞLARI */
+#mobile-controls {
+    margin-top: 15px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+}
+
+.joy-row {
+    display: flex;
+    gap: 8px;
+}
+
+.joy-btn {
+    width: 65px;
+    height: 65px;
+    background: rgba(233, 69, 96, 0.8);
+    border: 2px solid #00d4ff;
+    border-radius: 18px;
+    color: white;
+    font-size: 26px;
+    cursor: pointer;
+    /* Mobil dokunmatik iyileştirmeleri */
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+    touch-action: manipulation;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.joy-btn:active {
+    background: #00d4ff;
+    transform: scale(0.9);
+}
+
+/* Masaüstünde klavye kullananlar için mobil tuşları biraz şeffaflaştıralım */
+@media (min-width: 1024px) {
+    .joy-btn {
+        opacity: 0.6;
+    }
+    .joy-btn:hover {
+        opacity: 1;
+    }
+}

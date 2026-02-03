@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Asal Labirent 2.0</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div id="login-screen">
+        <div class="login-box">
+            <h1>ASAL KAOS</h1>
+            <p>Üniversite Seviyesi Strateji Oyunu</p>
+            <input type="text" id="usernameInput" placeholder="İsminizi giriniz...">
+            <br>
+            <button onclick="startGame()">OYUNA BAŞLA</button>
+        </div>
+    </div>
+
+    <div id="game-container" style="display: none;">
+        <div class="stats-box">
+            <div>Oyuncu: <b id="displayName"></b></div>
+            <div>En Yüksek: <b id="highScore">0</b></div>
+        </div>
+        <div class="stats-box">
+            <div>Süre: <b id="timer">30</b>s</div>
+            <div>Skor: <b id="score">0</b></div>
+        </div>
+        
+        <canvas id="mazeCanvas" width="500" height="500"></canvas>
+        
+        <div id="mobile-controls">
+            <button class="joy-btn" onclick="move('ArrowUp')">▲</button>
+            <div class="joy-row">
+                <button class="joy-btn" onclick="move('ArrowLeft')">◄</button>
+                <button class="joy-btn" onclick="move('ArrowDown')">▼</button>
+                <button class="joy-btn" onclick="move('ArrowRight')">►</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
