@@ -23,6 +23,7 @@ const maxWrongMoves = 4;
 
 // 2. OYUNU BAŞLATMA
 function startGame() {
+    playBackgroundMusic();
     const input = document.getElementById('usernameInput');
     if (!input || input.value.trim() === "") {
         alert("Lütfen bir isim girin!");
@@ -56,6 +57,7 @@ function showLevelSlide() {
 
 // 4. KALP SİSTEMİ MANTIĞI
 function handleWrongMove() {
+    playSound(150, 'sawtooth', 0.3); // Yanlış: Kalın ve uyarıcı ses
     const hearts = document.querySelectorAll('.heart');
     
     if (wrongMoves < maxWrongMoves) {
@@ -117,9 +119,10 @@ function spawnText(text, x, y, color) {
 
 // 7. LABİRENT ÜRETİMİ
 function generateLevel() {
+  
     showLevelSlide(); 
     currentGridSize = 4 + currentLevel; 
-    
+      playSound(523.25, 'triangle', 0.5); // Başarı sesi
     maze = [];
     for (let y = 0; y < currentGridSize; y++) {
         maze[y] = [];
@@ -155,7 +158,7 @@ function move(direction) {
     if (newX >= 0 && newX < currentGridSize && newY >= 0 && newY < currentGridSize) {
         if (isPrime(maze[newY][newX])) {
             player.x = newX; player.y = newY;
-            score += 10; timeLeft += 3;
+            score += 10; timeLeft += 3; playSound(880, 'sine', 0.1); // Doğru: İnce ve kısa ses
             spawnText("+3s", newX, newY, "#2ecc71");
         } else {
             player.x = newX; player.y = newY;
@@ -168,6 +171,9 @@ function move(direction) {
             spawnConfetti();
             
             if (currentLevel < maxLevel) {
+                // Seviye atlayınca çalacak kısa "başarı" sesi
+             playSound(660, 'triangle', 0.3);
+             setTimeout(() => playSound(880, 'triangle', 0.4), 100);
                 currentLevel++;
                 timeLeft += 15; 
                 setTimeout(generateLevel, 600);
@@ -230,11 +236,18 @@ function draw() {
 function victory() {
     clearInterval(timerInterval);
     timeLeft = 0;
+    
+    // Zafer sesi ve konfetiler
+    playVictoryMelody(); 
     spawnConfetti();
-    setTimeout(spawnConfetti, 500);
-    alert(`🏆 EFSANESİNİZ! 🏆\n5 Seviyeyi de başarıyla bitirdiniz!\nToplam Skor: ${score}`);
-    if (score > userHighScore) localStorage.setItem(currentUser, JSON.stringify({ highScore: score }));
-    location.reload();
+    
+    setTimeout(() => {
+        alert(`🏆 MUHTEŞEM BİR ZAFER! 🏆\n5 Seviyeyi de bitirdin!\nSkorun: ${score}`);
+        if (score > userHighScore) {
+            localStorage.setItem(currentUser, JSON.stringify({ highScore: score }));
+        }
+        location.reload();
+    }, 1500); // Melodi bitsin diye alert'i biraz geciktirdik
 }
 
 function startTimer() {
@@ -250,4 +263,43 @@ function finishGame() {
     alert("Süre bitti! Skorunuz: " + score);
     if (score > userHighScore) localStorage.setItem(currentUser, JSON.stringify({ highScore: score }));
     location.reload();
+}
+// SES SİSTEMİ (Tarayıcı üzerinden bip sesleri üretir)
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+function playSound(freq, type, duration) {
+    const oscillator = audioCtx.createOscillator();
+    const gainNode = audioCtx.createGain();
+
+    oscillator.type = type; // 'sine', 'square', 'sawtooth', 'triangle'
+    oscillator.frequency.setValueAtTime(freq, audioCtx.currentTime);
+    
+    gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+
+    oscillator.connect(gainNode);
+    gainNode.connect(audioCtx.destination);
+
+    oscillator.start();
+    oscillator.stop(audioCtx.currentTime + duration);
+    
+}
+function playVictoryMelody() {
+    // Neşeli bir yükseliş melodisi (Do-Re-Mi-Fa-Sol)
+    const notes = [523.25, 587.33, 659.25, 698.46, 783.99, 880, 987.77, 1046.50];
+    notes.forEach((freq, index) => {
+        setTimeout(() => {
+            playSound(freq, 'sine', 0.2);
+        }, index * 150); // Notalar sırayla çalacak
+    });
+}
+
+// ARKA PLAN MÜZİĞİ (Hafif Tempo)
+function playBackgroundMusic() {
+    // Bu basit bir 'ping' döngüsü oluşturur
+    setInterval(() => {
+        if (timeLeft > 0) {
+            playSound(220, 'sine', 0.1); // Kalın bir tempo sesi
+        }
+    }, 1000); 
 }
