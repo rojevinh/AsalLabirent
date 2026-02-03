@@ -93,6 +93,15 @@ b {
     max-height: 70vh; /* Mobil boy uyumu */
     display: block;
     margin: 0 auto;
+    display: block;
+    margin: 20px auto;
+    background: #1a1a2e;
+    border: 3px solid #00d4ff; /* Neon çerçeve */
+    border-radius: 15px;
+    box-shadow: 0 0 20px rgba(0, 212, 255, 0.5), 
+                inset 0 0 10px rgba(0, 212, 255, 0.2);
+    max-width: 95%; /* Mobil sığma garantisi */
+    height: auto;
 }
 
 /* 5. MOBİL KONTROL TUŞLARI */
@@ -132,7 +141,7 @@ b {
     transform: scale(0.9);
 }
 
-/* Masaüstünde klavye kullananlar için mobil tuşları biraz şeffaflaştıralım */
+/*  mobil tuşları biraz şeffaflaştırma */
 @media (min-width: 1024px) {
     .joy-btn {
         opacity: 0.6;
@@ -140,4 +149,62 @@ b {
     .joy-btn:hover {
         opacity: 1;
     }
+}
+/* SEVİYE GEÇİŞ SLAYTI (KAYAN SAYFA) */
+#level-slide {
+    position: absolute;
+    top: 50%;
+    left: -110%; /* Başlangıçta ekranın tamamen solunda, gizli */
+    transform: translateY(-50%);
+    width: 100%;
+    background: linear-gradient(90deg, #e94560, #ff2e63);
+    color: white;
+    padding: 40px 0;
+    text-align: center;
+    z-index: 1000;
+    box-shadow: 0 0 50px rgba(0, 0, 0, 0.8);
+    transition: left 0.7s cubic-bezier(0.68, -0.55, 0.27, 1.55); /* Zıplamalı kayma efekti */
+    pointer-events: none; /* Altındaki butonlara tıklamayı engellemez */
+    border-top: 4px solid #00d4ff;
+    border-bottom: 4px solid #00d4ff;
+}
+
+/* Slayt aktif olduğunda merkeze gelir */
+#level-slide.active {
+    left: 0;
+}
+
+#level-slide h2 {
+    font-size: 3.5rem;
+    margin: 0;
+    letter-spacing: 5px;
+    text-shadow: 3px 3px 0px #0f3460;
+}
+
+#level-slide p {
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: #00d4ff;
+    text-transform: uppercase;
+}
+
+/* Oyun konteynerine position:relative eklemeliyiz ki slide onun içinde kalsın */
+#game-container {
+    position: relative;
+    overflow: hidden; /* Dışarı taşan slide görünmesin */
+}
+#hearts-container {
+    display: flex;
+    gap: 5px;
+    justify-content: center;
+    align-items: center;
+}
+
+.heart {
+    transition: filter 0.3s ease;
+}
+
+/* Yanlış yapınca bu sınıfı JS ile ekleyeceğiz */
+.heart.broken {
+    filter: grayscale(100%) brightness(30%); /* Kalbi siyaha çevirir */
 }

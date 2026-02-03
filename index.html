@@ -11,15 +11,28 @@
     <div id="login-screen">
         <div class="login-box">
             <h1>ASAL KAOS</h1>
-            <p>Üniversite Seviyesi Strateji Oyunu</p>
-            <input type="text" id="usernameInput" placeholder="İsminizi giriniz...">
+            <p>Seviyeleri Geç,Puan Topla!</p>
+            <input type="text" id="usernameInput" placeholder="Okul numaranızı giriniz...">
             <br>
             <button onclick="startGame()">OYUNA BAŞLA</button>
         </div>
     </div>
 
     <div id="game-container" style="display: none;">
+        <div id="level-slide">
+            <h2 id="level-text">SEVİYE 1</h2>
+        
+        </div>
+
         <div class="stats-box">
+            <div>Süre: <b id="timer">30</b>s</div>
+    <div id="hearts-container">
+        <span class="heart">❤️</span>
+        <span class="heart">❤️</span>
+        <span class="heart">❤️</span>
+        <span class="heart">❤️</span>
+    </div>
+    <div>Skor: <b id="score">0</b></div>
             <div>Oyuncu: <b id="displayName"></b></div>
             <div>En Yüksek: <b id="highScore">0</b></div>
         </div>

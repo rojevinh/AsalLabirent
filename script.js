@@ -1,4 +1,4 @@
-// 1. DEĞİŞKENLER
+// 1. DEĞİŞKENLER VE AYARLAR
 const canvas = document.getElementById('mazeCanvas');
 const ctx = canvas.getContext('2d');
 const timerEl = document.getElementById('timer');
@@ -15,36 +15,25 @@ let timerInterval;
 let floatingTexts = []; 
 let particles = [];
 
-// Mobil uyum için canvas boyutunu ayarla
-function resizeCanvas() {
-    const size = Math.min(window.innerWidth * 0.95, 500);
-    canvas.width = size;
-    canvas.height = size;
-    if (maze.length > 0) draw(); // Boyut değişince yeniden çiz
-}
+// SEVİYE VE KALP SİSTEMİ
+let currentLevel = 1;
+const maxLevel = 5; 
+let wrongMoves = 0;
+const maxWrongMoves = 4;
 
-window.addEventListener('resize', resizeCanvas);
-resizeCanvas(); // İlk açılışta çalıştır
-
-// 2. OYUNU BAŞLATMA (BUTONUN ÇALIŞMASI İÇİN KRİTİK)
+// 2. OYUNU BAŞLATMA
 function startGame() {
-    console.log("Butona basıldı!"); // Konsolda kontrol için
     const input = document.getElementById('usernameInput');
-    
     if (!input || input.value.trim() === "") {
         alert("Lütfen bir isim girin!");
         return;
     }
-
     currentUser = input.value.trim();
     const savedData = JSON.parse(localStorage.getItem(currentUser)) || { highScore: 0 };
     userHighScore = savedData.highScore;
     
-    // Ekranları değiştir
     document.getElementById('login-screen').style.display = 'none';
     document.getElementById('game-container').style.display = 'block';
-    
-    // Bilgileri yazdır
     document.getElementById('displayName').innerText = currentUser;
     document.getElementById('highScore').innerText = userHighScore;
     
@@ -52,7 +41,43 @@ function startGame() {
     startTimer();
 }
 
-// 3. ASAL SAYI MANTIĞI
+// 3. SEVİYE SLAYT GEÇİŞİ
+function showLevelSlide() {
+    const slide = document.getElementById('level-slide');
+    const text = document.getElementById('level-text');
+    
+    text.innerText = `SEVİYE ${currentLevel}`;
+    slide.classList.add('active'); 
+
+    setTimeout(() => {
+        slide.classList.remove('active');
+    }, 1500);
+}
+
+// 4. KALP SİSTEMİ MANTIĞI
+function handleWrongMove() {
+    const hearts = document.querySelectorAll('.heart');
+    
+    if (wrongMoves < maxWrongMoves) {
+        // Sıradaki kalbi siyah yap
+        hearts[wrongMoves].classList.add('broken');
+        wrongMoves++;
+        timeLeft -= 6; // -6 saniye cezası
+        spawnText("-6s💔", player.x, player.y, "#e74c3c");
+    }
+
+    // Haklar biterse süreyi sıfırla ve oyunu bitir
+    if (wrongMoves >= maxWrongMoves) {
+        timeLeft = 0;
+        timerEl.innerText = 0;
+        setTimeout(() => {
+            alert("❌ Tüm kalplerin söndü! Asal sayılara daha dikkat etmelisin.");
+            location.reload();
+        }, 150);
+    }
+}
+
+// 5. MATEMATİKSEL FONKSİYONLAR
 function isPrime(num) {
     if (num <= 1) return false;
     for (let i = 2; i <= Math.sqrt(num); i++) if (num % i === 0) return false;
@@ -60,21 +85,21 @@ function isPrime(num) {
 }
 
 function getRandomNumber(wantPrime) {
-    let limit = 50 + (score / 2); 
+    let limit = 40 + (currentLevel * 20); 
     let n = Math.floor(Math.random() * limit) + 2;
     while (isPrime(n) !== wantPrime) n = Math.floor(Math.random() * limit) + 2;
     return n;
 }
 
-// 4. KONFETİ VE METİN EFEKTLERİ
+// 6. GÖRSEL EFEKTLER
 function spawnConfetti() {
     const tileSize = canvas.width / currentGridSize;
     for (let i = 0; i < 150; i++) {
         particles.push({
             x: player.x * tileSize + tileSize / 2,
             y: player.y * tileSize + tileSize / 2,
-            vx: (Math.random() - 0.5) * 12,
-            vy: (Math.random() - 0.5) * 12,
+            vx: (Math.random() - 0.5) * 15,
+            vy: (Math.random() - 0.5) * 15,
             color: `hsl(${Math.random() * 360}, 100%, 50%)`,
             size: Math.random() * 6 + 2,
             life: 1
@@ -85,24 +110,22 @@ function spawnConfetti() {
 function spawnText(text, x, y, color) {
     const tileSize = canvas.width / currentGridSize;
     floatingTexts.push({
-        text: text,
-        x: x * tileSize + tileSize / 2,
-        y: y * tileSize + tileSize / 2,
-        opacity: 1,
-        color: color
+        text: text, x: x * tileSize + tileSize / 2, y: y * tileSize + tileSize / 2,
+        opacity: 1, color: color
     });
 }
 
-// 5. LABİRENT VE HAREKET
+// 7. LABİRENT ÜRETİMİ
 function generateLevel() {
-    currentGridSize = Math.min(5 + Math.floor(score / 100), 10);
+    showLevelSlide(); 
+    currentGridSize = 4 + currentLevel; 
+    
     maze = [];
     for (let y = 0; y < currentGridSize; y++) {
         maze[y] = [];
         for (let x = 0; x < currentGridSize; x++) maze[y][x] = getRandomNumber(false);
     }
-    createPath(); 
-    createPath(); 
+    createPath(); createPath(); 
     player = { x: 0, y: 0 };
     draw();
 }
@@ -118,6 +141,7 @@ function createPath() {
     }
 }
 
+// 8. HAREKET VE KONTROL
 function move(direction) {
     if (timeLeft <= 0 || !currentUser) return;
     let newX = player.x;
@@ -135,14 +159,22 @@ function move(direction) {
             spawnText("+3s", newX, newY, "#2ecc71");
         } else {
             player.x = newX; player.y = newY;
-            timeLeft -= 3;
-            spawnText("-3s", newX, newY, "#e74c3c");
+            handleWrongMove(); // Kalp ve ceza fonksiyonunu çağır
         }
 
+        // BİTİŞE ULAŞMA (TEK SEFERDE GEÇİŞ)
         if (player.x === currentGridSize - 1 && player.y === currentGridSize - 1) {
-            score += 50;
+            score += 150; 
             spawnConfetti();
-            setTimeout(generateLevel, 300);
+            
+            if (currentLevel < maxLevel) {
+                currentLevel++;
+                timeLeft += 15; 
+                setTimeout(generateLevel, 600);
+            } else {
+                setTimeout(victory, 600);
+                return;
+            }
         }
         scoreEl.innerText = score;
     }
@@ -150,69 +182,72 @@ function move(direction) {
 
 window.addEventListener('keydown', (e) => move(e.key));
 
-// 6. GÖRSEL DÖNGÜ
+// 9. ÇİZİM DÖNGÜSÜ
 function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    const tileSize = canvas.width / currentGridSize;
+    // Tam sayı bölmesi yaparak kenarlarda boşluk kalmasını engelliyoruz
+    const tileSize = Math.floor(canvas.width / currentGridSize); 
 
     for (let y = 0; y < currentGridSize; y++) {
         for (let x = 0; x < currentGridSize; x++) {
-            ctx.strokeStyle = "rgba(15, 52, 96, 0.3)";
+            // Hücre çizgileri (ince ve hafif)
+            ctx.strokeStyle = "rgba(0, 212, 255, 0.15)";
+            ctx.lineWidth = 1;
             ctx.strokeRect(x * tileSize, y * tileSize, tileSize, tileSize);
+            
+            // Sayılar
             ctx.fillStyle = "white";
             ctx.font = `bold ${Math.max(12, 24 - currentGridSize)}px Arial`;
             ctx.textAlign = "center";
             ctx.fillText(maze[y][x], x * tileSize + tileSize/2, y * tileSize + tileSize/1.7);
         }
     }
-
-    ctx.font = `${Math.max(20, 45 - currentGridSize * 3)}px Arial`;
+    
+    // Karakter ve diğer efektler buraya devam edecek...
+    ctx.font = `${Math.max(18, 40 - currentGridSize * 2)}px Arial`;
     ctx.fillText("🧑‍🎓", player.x * tileSize + tileSize/2, player.y * tileSize + tileSize/1.4);
 
-    // Konfeti Döngüsü
-    for (let i = particles.length - 1; i >= 0; i--) {
-        let p = particles[i];
-        ctx.globalAlpha = p.life;
-        ctx.fillStyle = p.color;
+    particles.forEach((p, i) => {
+        ctx.globalAlpha = p.life; ctx.fillStyle = p.color;
         ctx.fillRect(p.x, p.y, p.size, p.size);
-        p.x += p.vx; p.y += p.vy; p.vy += 0.1; p.life -= 0.005;
+        p.x += p.vx; p.y += p.vy; p.vy += 0.12; p.life -= 0.005;
         if (p.life <= 0) particles.splice(i, 1);
-    }
+    });
 
-    // Metin Döngüsü
-    for (let i = floatingTexts.length - 1; i >= 0; i--) {
-        let ft = floatingTexts[i];
-        ctx.globalAlpha = ft.opacity;
-        ctx.fillStyle = ft.color;
-        ctx.font = "bold 20px Arial";
+    floatingTexts.forEach((ft, i) => {
+        ctx.globalAlpha = ft.opacity; ctx.fillStyle = ft.color;
+        ctx.font = "bold 18px Arial";
         ctx.fillText(ft.text, ft.x, ft.y);
         ft.y -= 1.2; ft.opacity -= 0.02;
         if (ft.opacity <= 0) floatingTexts.splice(i, 1);
-    }
+    });
 
     ctx.globalAlpha = 1;
     if (timeLeft > 0) requestAnimationFrame(draw);
 }
 
-// 7. SİSTEM
+// 10. BİTİŞ VE ZAMANLAYICI
+function victory() {
+    clearInterval(timerInterval);
+    timeLeft = 0;
+    spawnConfetti();
+    setTimeout(spawnConfetti, 500);
+    alert(`🏆 EFSANESİNİZ! 🏆\n5 Seviyeyi de başarıyla bitirdiniz!\nToplam Skor: ${score}`);
+    if (score > userHighScore) localStorage.setItem(currentUser, JSON.stringify({ highScore: score }));
+    location.reload();
+}
+
 function startTimer() {
     if (timerInterval) clearInterval(timerInterval);
     timerInterval = setInterval(() => {
         timeLeft--;
-        if (timeLeft <= 0) {
-            clearInterval(timerInterval);
-            finishGame();
-        }
+        if (timeLeft <= 0) { clearInterval(timerInterval); finishGame(); }
         timerEl.innerText = Math.max(0, timeLeft);
     }, 1000);
 }
 
 function finishGame() {
-    if (score > userHighScore) {
-        localStorage.setItem(currentUser, JSON.stringify({ highScore: score }));
-        alert("🎉 REKOR: " + score);
-    } else {
-        alert("Süre Bitti! Skor: " + score);
-    }
+    alert("Süre bitti! Skorunuz: " + score);
+    if (score > userHighScore) localStorage.setItem(currentUser, JSON.stringify({ highScore: score }));
     location.reload();
 }
