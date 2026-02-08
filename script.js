@@ -1,4 +1,4 @@
-// --- DEĞİŞKENLER ---
+// --- DEĞİŞKENLER VE ELEMENTLER ---
 const canvas = document.getElementById('mazeCanvas');
 const ctx = canvas.getContext('2d');
 const timerEl = document.getElementById('timer');
@@ -17,7 +17,7 @@ let currentLevel = 1;
 const maxLevel = 5; 
 let wrongMoves = 0;
 const maxWrongMoves = 4;
-let visitedCells = []; // Hileyi engelleyen liste
+let visitedCells = []; // Geri dönmeyi engelleyen hafıza
 
 // --- SES SİSTEMİ ---
 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -55,10 +55,13 @@ function startGame() {
     document.getElementById('displayName').innerText = currentUser;
     document.getElementById('highScore').innerText = userHighScore;
     
+    // YENİ KURAL UYARISI
+    alert("DİKKAT: Geçtiğin yollardan tekrar geçersen CANIN ve SÜREN gider! Sadece yeni karelere ilerle.");
+    
     generateLevel();
     startTimer();
     
-    // Arka plan tık tık sesi
+    // Arka plan tık tık sesi (Tempo)
     setInterval(() => { if(timeLeft > 0) playSound(200, 'sine', 0.05); }, 1000);
 }
 
@@ -66,8 +69,8 @@ function startGame() {
 function generateLevel() {
     showLevelSlide(); 
     currentGridSize = 4 + currentLevel; 
-    visitedCells = []; // Geçmişi temizle
-    visitedCells.push("0,0"); // Başlangıcı işaretle
+    visitedCells = []; // Her seviye başında temizle
+    visitedCells.push("0,0"); // Başlangıç noktasını işaretle
     
     maze = [];
     for (let y = 0; y < currentGridSize; y++) {
@@ -110,12 +113,18 @@ function move(dir) {
     if (dir === "ArrowRight" || dir === "right") nX++;
 
     if (nX >= 0 && nX < currentGridSize && nY >= 0 && nY < currentGridSize) {
-        // HİLE ENGELİ: Daha önce basılan yere tekrar basamaz
+        
+        // --- GERİ DÖNME VE ESKİ KARE CEZASI ---
         if (visitedCells.includes(`${nX},${nY}`)) {
-            playSound(300, 'square', 0.05);
+            player.x = nX; 
+            player.y = nY;
+            handleWrongMove(); // Can ve süre götürür
+            spawnText("⚠️ ESKİ KARE! -6s & 💔", nX, nY, "#ff0000");
+            scoreEl.innerText = score;
             return; 
         }
 
+        // --- NORMAL İLERLEME ---
         if (isPrime(maze[nY][nX])) {
             player.x = nX; player.y = nY;
             visitedCells.push(`${nX},${nY}`);
@@ -144,14 +153,14 @@ function move(dir) {
     }
 }
 
-// --- GÖRSEL EFEKTLER ---
+// --- GÖRSEL SİSTEM ---
 function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     const tileSize = canvas.width / currentGridSize;
 
     for (let y = 0; y < currentGridSize; y++) {
         for (let x = 0; x < currentGridSize; x++) {
-            // Geçilen yolları işaretle
+            // Geçilen yolları hafifçe işaretle
             if (visitedCells.includes(`${x},${y}`)) {
                 ctx.fillStyle = "rgba(0, 212, 255, 0.1)";
                 ctx.fillRect(x * tileSize, y * tileSize, tileSize, tileSize);
@@ -165,16 +174,22 @@ function draw() {
             ctx.fillText(maze[y][x], x * tileSize + tileSize/2, y * tileSize + tileSize/1.7);
         }
     }
+    
+    // Karakter
     ctx.font = "30px Arial";
     ctx.fillText("🧑‍🎓", player.x * tileSize + tileSize/2, player.y * tileSize + tileSize/1.4);
     
+    // Uçan Metinler
     updateFloatingTexts();
+    
     if (timeLeft > 0) requestAnimationFrame(draw);
 }
 
 function updateFloatingTexts() {
     floatingTexts.forEach((ft, i) => {
-        ctx.globalAlpha = ft.opacity; ctx.fillStyle = ft.color;
+        ctx.globalAlpha = ft.opacity; 
+        ctx.fillStyle = ft.color;
+        ctx.font = "bold 18px Arial"; // Uyarılar daha belirgin
         ctx.fillText(ft.text, ft.x, ft.y);
         ft.y -= 1; ft.opacity -= 0.02;
         if (ft.opacity <= 0) floatingTexts.splice(i, 1);
@@ -194,19 +209,22 @@ function handleWrongMove() {
         wrongMoves++;
         timeLeft -= 6;
         playSound(150, 'sawtooth', 0.3);
-        spawnText("-6s & 💔", player.x, player.y, "#e74c3c");
+        if (!visitedCells.includes(`${player.x},${player.y}`)) {
+            spawnText("-6s & 💔", player.x, player.y, "#e74c3c");
+        }
     }
     if (wrongMoves >= maxWrongMoves) {
         timeLeft = 0;
-        setTimeout(() => { alert("❌ Kalpler Bitti!"); location.reload(); }, 200);
+        setTimeout(() => { alert("❌ Kalpler Bitti! Oyun Sona Erdi."); location.reload(); }, 200);
     }
 }
 
 function showLevelSlide() {
     const slide = document.getElementById('level-slide');
-    const levelText = document.getElementById('level-text'); // Metni yakalıyoruz
+    const levelText = document.getElementById('level-text');
     
-    levelText.innerText = `SEVİYE ${currentLevel}`; // Statik yazıyı değişkenle değiştiriyoruz
+    // Level numarasını günceller
+    levelText.innerText = (currentLevel === maxLevel) ? "FİNAL SEVİYESİ" : `SEVİYE ${currentLevel}`;
     
     slide.classList.add('active'); 
     setTimeout(() => slide.classList.remove('active'), 1500);
@@ -217,7 +235,7 @@ function startTimer() {
         timeLeft--;
         if (timeLeft <= 0) { 
             clearInterval(timerInterval); 
-            alert("Süre Bitti!"); 
+            alert("Süre Bitti! Tekrar Dene."); 
             location.reload(); 
         }
         timerEl.innerText = Math.max(0, timeLeft);
@@ -228,13 +246,13 @@ function victory() {
     clearInterval(timerInterval);
     playVictoryMelody();
     setTimeout(() => {
-        alert("🏆 ASAL KRAL OLDUN! SKOR: " + score);
+        alert("🏆 TEBRİKLER " + currentUser.toUpperCase() + "! ASAL KRAL OLDUN!\nToplam Skorun: " + score);
         if (score > userHighScore) localStorage.setItem(currentUser, JSON.stringify({ highScore: score }));
         location.reload();
     }, 1500);
 }
 
-// --- KLAVYE DİNLEYİCİ ---
+// Klavye Kontrolü
 window.addEventListener('keydown', (e) => {
     if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) {
         e.preventDefault();
