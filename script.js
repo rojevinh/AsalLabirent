@@ -204,6 +204,10 @@ function handleWrongMove() {
 
 function showLevelSlide() {
     const slide = document.getElementById('level-slide');
+    const levelText = document.getElementById('level-text'); // Metni yakalıyoruz
+    
+    levelText.innerText = `SEVİYE ${currentLevel}`; // Statik yazıyı değişkenle değiştiriyoruz
+    
     slide.classList.add('active'); 
     setTimeout(() => slide.classList.remove('active'), 1500);
 }
