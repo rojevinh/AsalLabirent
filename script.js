@@ -1,4 +1,4 @@
-// 1. DEĞİŞKENLER VE AYARLAR
+// --- DEĞİŞKENLER ---
 const canvas = document.getElementById('mazeCanvas');
 const ctx = canvas.getContext('2d');
 const timerEl = document.getElementById('timer');
@@ -13,25 +13,42 @@ let currentUser = "";
 let userHighScore = 0;
 let timerInterval;
 let floatingTexts = []; 
-let particles = [];
-
-// SEVİYE VE KALP SİSTEMİ
 let currentLevel = 1;
 const maxLevel = 5; 
 let wrongMoves = 0;
 const maxWrongMoves = 4;
+let visitedCells = []; // Hileyi engelleyen liste
 
-// 2. OYUNU BAŞLATMA
+// --- SES SİSTEMİ ---
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+function playSound(freq, type, duration) {
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+    gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start();
+    osc.stop(audioCtx.currentTime + duration);
+}
+
+function playVictoryMelody() {
+    const notes = [523, 587, 659, 698, 783, 880, 987, 1046];
+    notes.forEach((f, i) => setTimeout(() => playSound(f, 'sine', 0.2), i * 150));
+}
+
+// --- OYUN BAŞLATMA ---
 function startGame() {
-    playBackgroundMusic();
     const input = document.getElementById('usernameInput');
-    if (!input || input.value.trim() === "") {
-        alert("Lütfen bir isim girin!");
+    if (!input.value.trim()) {
+        alert("Adınızı Yazın!");
         return;
     }
+    
     currentUser = input.value.trim();
-    const savedData = JSON.parse(localStorage.getItem(currentUser)) || { highScore: 0 };
-    userHighScore = savedData.highScore;
+    const saved = JSON.parse(localStorage.getItem(currentUser)) || { highScore: 0 };
+    userHighScore = saved.highScore;
     
     document.getElementById('login-screen').style.display = 'none';
     document.getElementById('game-container').style.display = 'block';
@@ -40,46 +57,36 @@ function startGame() {
     
     generateLevel();
     startTimer();
-}
-
-// 3. SEVİYE SLAYT GEÇİŞİ
-function showLevelSlide() {
-    const slide = document.getElementById('level-slide');
-    const text = document.getElementById('level-text');
     
-    text.innerText = `SEVİYE ${currentLevel}`;
-    slide.classList.add('active'); 
-
-    setTimeout(() => {
-        slide.classList.remove('active');
-    }, 1500);
+    // Arka plan tık tık sesi
+    setInterval(() => { if(timeLeft > 0) playSound(200, 'sine', 0.05); }, 1000);
 }
 
-// 4. KALP SİSTEMİ MANTIĞI
-function handleWrongMove() {
-    playSound(150, 'sawtooth', 0.3); // Yanlış: Kalın ve uyarıcı ses
-    const hearts = document.querySelectorAll('.heart');
+// --- SEVİYE VE MANTIK ---
+function generateLevel() {
+    showLevelSlide(); 
+    currentGridSize = 4 + currentLevel; 
+    visitedCells = []; // Geçmişi temizle
+    visitedCells.push("0,0"); // Başlangıcı işaretle
     
-    if (wrongMoves < maxWrongMoves) {
-        // Sıradaki kalbi siyah yap
-        hearts[wrongMoves].classList.add('broken');
-        wrongMoves++;
-        timeLeft -= 6; // -6 saniye cezası
-        spawnText("-6s💔", player.x, player.y, "#e74c3c");
+    maze = [];
+    for (let y = 0; y < currentGridSize; y++) {
+        maze[y] = [];
+        for (let x = 0; x < currentGridSize; x++) maze[y][x] = getRandomNumber(false);
     }
-
-    // Haklar biterse süreyi sıfırla ve oyunu bitir
-    if (wrongMoves >= maxWrongMoves) {
-        timeLeft = 0;
-        timerEl.innerText = 0;
-        setTimeout(() => {
-            alert("❌ Tüm kalplerin söndü! Asal sayılara daha dikkat etmelisin.");
-            location.reload();
-        }, 150);
+    
+    // Yol oluşturma
+    let cX = 0, cY = 0;
+    maze[cY][cX] = getRandomNumber(true);
+    while (cX < currentGridSize - 1 || cY < currentGridSize - 1) {
+        if (Math.random() > 0.5 && cX < currentGridSize - 1) cX++; else if (cY < currentGridSize - 1) cY++; else cX++;
+        maze[cY][cX] = getRandomNumber(true);
     }
+    
+    player = { x: 0, y: 0 };
+    draw();
 }
 
-// 5. MATEMATİKSEL FONKSİYONLAR
 function isPrime(num) {
     if (num <= 1) return false;
     for (let i = 2; i <= Math.sqrt(num); i++) if (num % i === 0) return false;
@@ -93,213 +100,140 @@ function getRandomNumber(wantPrime) {
     return n;
 }
 
-// 6. GÖRSEL EFEKTLER
-function spawnConfetti() {
-    const tileSize = canvas.width / currentGridSize;
-    for (let i = 0; i < 150; i++) {
-        particles.push({
-            x: player.x * tileSize + tileSize / 2,
-            y: player.y * tileSize + tileSize / 2,
-            vx: (Math.random() - 0.5) * 15,
-            vy: (Math.random() - 0.5) * 15,
-            color: `hsl(${Math.random() * 360}, 100%, 50%)`,
-            size: Math.random() * 6 + 2,
-            life: 1
-        });
-    }
-}
+function move(dir) {
+    if (timeLeft <= 0) return;
+    let nX = player.x, nY = player.y;
+    
+    if (dir === "ArrowUp" || dir === "up") nY--; 
+    if (dir === "ArrowDown" || dir === "down") nY++;
+    if (dir === "ArrowLeft" || dir === "left") nX--; 
+    if (dir === "ArrowRight" || dir === "right") nX++;
 
-function spawnText(text, x, y, color) {
-    const tileSize = canvas.width / currentGridSize;
-    floatingTexts.push({
-        text: text, x: x * tileSize + tileSize / 2, y: y * tileSize + tileSize / 2,
-        opacity: 1, color: color
-    });
-}
+    if (nX >= 0 && nX < currentGridSize && nY >= 0 && nY < currentGridSize) {
+        // HİLE ENGELİ: Daha önce basılan yere tekrar basamaz
+        if (visitedCells.includes(`${nX},${nY}`)) {
+            playSound(300, 'square', 0.05);
+            return; 
+        }
 
-// 7. LABİRENT ÜRETİMİ
-function generateLevel() {
-  
-    showLevelSlide(); 
-    currentGridSize = 4 + currentLevel; 
-      playSound(523.25, 'triangle', 0.5); // Başarı sesi
-    maze = [];
-    for (let y = 0; y < currentGridSize; y++) {
-        maze[y] = [];
-        for (let x = 0; x < currentGridSize; x++) maze[y][x] = getRandomNumber(false);
-    }
-    createPath(); createPath(); 
-    player = { x: 0, y: 0 };
-    draw();
-}
-
-function createPath() {
-    let currX = 0, currY = 0;
-    maze[currY][currX] = getRandomNumber(true);
-    while (currX < currentGridSize - 1 || currY < currentGridSize - 1) {
-        if (Math.random() > 0.5 && currX < currentGridSize - 1) currX++;
-        else if (currY < currentGridSize - 1) currY++;
-        else currX++;
-        maze[currY][currX] = getRandomNumber(true);
-    }
-}
-
-// 8. HAREKET VE KONTROL
-function move(direction) {
-    if (timeLeft <= 0 || !currentUser) return;
-    let newX = player.x;
-    let newY = player.y;
-
-    if (direction === "ArrowUp") newY--;
-    if (direction === "ArrowDown") newY++;
-    if (direction === "ArrowLeft") newX--;
-    if (direction === "ArrowRight") newX++;
-
-    if (newX >= 0 && newX < currentGridSize && newY >= 0 && newY < currentGridSize) {
-        if (isPrime(maze[newY][newX])) {
-            player.x = newX; player.y = newY;
-            score += 10; timeLeft += 3; playSound(880, 'sine', 0.1); // Doğru: İnce ve kısa ses
-            spawnText("+3s", newX, newY, "#2ecc71");
+        if (isPrime(maze[nY][nX])) {
+            player.x = nX; player.y = nY;
+            visitedCells.push(`${nX},${nY}`);
+            score += 10; timeLeft += 3;
+            playSound(880, 'sine', 0.1);
+            spawnText("+10 Puan", nX, nY, "#2ecc71");
         } else {
-            player.x = newX; player.y = newY;
-            handleWrongMove(); // Kalp ve ceza fonksiyonunu çağır
+            player.x = nX; player.y = nY;
+            visitedCells.push(`${nX},${nY}`);
+            handleWrongMove();
         }
-
-        // BİTİŞE ULAŞMA (TEK SEFERDE GEÇİŞ)
-        if (player.x === currentGridSize - 1 && player.y === currentGridSize - 1) {
-            score += 150; 
-            spawnConfetti();
-            
-            if (currentLevel < maxLevel) {
-                // Seviye atlayınca çalacak kısa "başarı" sesi
-             playSound(660, 'triangle', 0.3);
-             setTimeout(() => playSound(880, 'triangle', 0.4), 100);
-                currentLevel++;
-                timeLeft += 15; 
-                setTimeout(generateLevel, 600);
-            } else {
-                setTimeout(victory, 600);
-                return;
-            }
-        }
+        
         scoreEl.innerText = score;
+
+        // Bitiş Kontrolü
+        if (player.x === currentGridSize - 1 && player.y === currentGridSize - 1) {
+            score += 150;
+            scoreEl.innerText = score;
+            if (currentLevel < maxLevel) {
+                currentLevel++; 
+                timeLeft += 15;
+                playSound(660, 'triangle', 0.3);
+                setTimeout(generateLevel, 600);
+            } else { victory(); }
+        }
     }
 }
 
-window.addEventListener('keydown', (e) => move(e.key));
-
-// 9. ÇİZİM DÖNGÜSÜ
+// --- GÖRSEL EFEKTLER ---
 function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    // Tam sayı bölmesi yaparak kenarlarda boşluk kalmasını engelliyoruz
-    const tileSize = Math.floor(canvas.width / currentGridSize); 
+    const tileSize = canvas.width / currentGridSize;
 
     for (let y = 0; y < currentGridSize; y++) {
         for (let x = 0; x < currentGridSize; x++) {
-            // Hücre çizgileri (ince ve hafif)
-            ctx.strokeStyle = "rgba(0, 212, 255, 0.15)";
-            ctx.lineWidth = 1;
-            ctx.strokeRect(x * tileSize, y * tileSize, tileSize, tileSize);
+            // Geçilen yolları işaretle
+            if (visitedCells.includes(`${x},${y}`)) {
+                ctx.fillStyle = "rgba(0, 212, 255, 0.1)";
+                ctx.fillRect(x * tileSize, y * tileSize, tileSize, tileSize);
+            }
             
-            // Sayılar
+            ctx.strokeStyle = "rgba(0, 212, 255, 0.15)";
+            ctx.strokeRect(x * tileSize, y * tileSize, tileSize, tileSize);
             ctx.fillStyle = "white";
-            ctx.font = `bold ${Math.max(12, 24 - currentGridSize)}px Arial`;
+            ctx.font = `bold ${Math.max(14, 28 - currentGridSize * 2)}px Arial`;
             ctx.textAlign = "center";
             ctx.fillText(maze[y][x], x * tileSize + tileSize/2, y * tileSize + tileSize/1.7);
         }
     }
-    
-    // Karakter ve diğer efektler buraya devam edecek...
-    ctx.font = `${Math.max(18, 40 - currentGridSize * 2)}px Arial`;
+    ctx.font = "30px Arial";
     ctx.fillText("🧑‍🎓", player.x * tileSize + tileSize/2, player.y * tileSize + tileSize/1.4);
-
-    particles.forEach((p, i) => {
-        ctx.globalAlpha = p.life; ctx.fillStyle = p.color;
-        ctx.fillRect(p.x, p.y, p.size, p.size);
-        p.x += p.vx; p.y += p.vy; p.vy += 0.12; p.life -= 0.005;
-        if (p.life <= 0) particles.splice(i, 1);
-    });
-
-    floatingTexts.forEach((ft, i) => {
-        ctx.globalAlpha = ft.opacity; ctx.fillStyle = ft.color;
-        ctx.font = "bold 18px Arial";
-        ctx.fillText(ft.text, ft.x, ft.y);
-        ft.y -= 1.2; ft.opacity -= 0.02;
-        if (ft.opacity <= 0) floatingTexts.splice(i, 1);
-    });
-
-    ctx.globalAlpha = 1;
+    
+    updateFloatingTexts();
     if (timeLeft > 0) requestAnimationFrame(draw);
 }
 
-// 10. BİTİŞ VE ZAMANLAYICI
-function victory() {
-    clearInterval(timerInterval);
-    timeLeft = 0;
-    
-    // Zafer sesi ve konfetiler
-    playVictoryMelody(); 
-    spawnConfetti();
-    
-    setTimeout(() => {
-        alert(`🏆 MUHTEŞEM BİR ZAFER! 🏆\n5 Seviyeyi de bitirdin!\nSkorun: ${score}`);
-        if (score > userHighScore) {
-            localStorage.setItem(currentUser, JSON.stringify({ highScore: score }));
-        }
-        location.reload();
-    }, 1500); // Melodi bitsin diye alert'i biraz geciktirdik
+function updateFloatingTexts() {
+    floatingTexts.forEach((ft, i) => {
+        ctx.globalAlpha = ft.opacity; ctx.fillStyle = ft.color;
+        ctx.fillText(ft.text, ft.x, ft.y);
+        ft.y -= 1; ft.opacity -= 0.02;
+        if (ft.opacity <= 0) floatingTexts.splice(i, 1);
+    });
+    ctx.globalAlpha = 1;
+}
+
+function spawnText(t, x, y, c) {
+    const ts = canvas.width / currentGridSize;
+    floatingTexts.push({ text: t, x: x * ts + ts/2, y: y * ts + ts/2, opacity: 1, color: c });
+}
+
+function handleWrongMove() {
+    const hearts = document.querySelectorAll('.heart');
+    if (wrongMoves < maxWrongMoves) {
+        hearts[wrongMoves].classList.add('broken');
+        wrongMoves++;
+        timeLeft -= 6;
+        playSound(150, 'sawtooth', 0.3);
+        spawnText("-6s & 💔", player.x, player.y, "#e74c3c");
+    }
+    if (wrongMoves >= maxWrongMoves) {
+        timeLeft = 0;
+        setTimeout(() => { alert("❌ Kalpler Bitti!"); location.reload(); }, 200);
+    }
+}
+
+function showLevelSlide() {
+    const slide = document.getElementById('level-slide');
+    slide.classList.add('active'); 
+    setTimeout(() => slide.classList.remove('active'), 1500);
 }
 
 function startTimer() {
-    if (timerInterval) clearInterval(timerInterval);
     timerInterval = setInterval(() => {
         timeLeft--;
-        if (timeLeft <= 0) { clearInterval(timerInterval); finishGame(); }
+        if (timeLeft <= 0) { 
+            clearInterval(timerInterval); 
+            alert("Süre Bitti!"); 
+            location.reload(); 
+        }
         timerEl.innerText = Math.max(0, timeLeft);
     }, 1000);
 }
 
-function finishGame() {
-    alert("Süre bitti! Skorunuz: " + score);
-    if (score > userHighScore) localStorage.setItem(currentUser, JSON.stringify({ highScore: score }));
-    location.reload();
-}
-// SES SİSTEMİ (Tarayıcı üzerinden bip sesleri üretir)
-const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-
-function playSound(freq, type, duration) {
-    const oscillator = audioCtx.createOscillator();
-    const gainNode = audioCtx.createGain();
-
-    oscillator.type = type; // 'sine', 'square', 'sawtooth', 'triangle'
-    oscillator.frequency.setValueAtTime(freq, audioCtx.currentTime);
-    
-    gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
-    gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
-
-    oscillator.connect(gainNode);
-    gainNode.connect(audioCtx.destination);
-
-    oscillator.start();
-    oscillator.stop(audioCtx.currentTime + duration);
-    
-}
-function playVictoryMelody() {
-    // Neşeli bir yükseliş melodisi (Do-Re-Mi-Fa-Sol)
-    const notes = [523.25, 587.33, 659.25, 698.46, 783.99, 880, 987.77, 1046.50];
-    notes.forEach((freq, index) => {
-        setTimeout(() => {
-            playSound(freq, 'sine', 0.2);
-        }, index * 150); // Notalar sırayla çalacak
-    });
+function victory() {
+    clearInterval(timerInterval);
+    playVictoryMelody();
+    setTimeout(() => {
+        alert("🏆 ASAL KRAL OLDUN! SKOR: " + score);
+        if (score > userHighScore) localStorage.setItem(currentUser, JSON.stringify({ highScore: score }));
+        location.reload();
+    }, 1500);
 }
 
-// ARKA PLAN MÜZİĞİ (Hafif Tempo)
-function playBackgroundMusic() {
-    // Bu basit bir 'ping' döngüsü oluşturur
-    setInterval(() => {
-        if (timeLeft > 0) {
-            playSound(220, 'sine', 0.1); // Kalın bir tempo sesi
-        }
-    }, 1000); 
-}
+// --- KLAVYE DİNLEYİCİ ---
+window.addEventListener('keydown', (e) => {
+    if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) {
+        e.preventDefault();
+        move(e.key);
+    }
+});
